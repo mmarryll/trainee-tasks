@@ -31,8 +31,10 @@ LIMIT 1
 /*Display the titles of films not present in the inventory. Write the query without using the IN operator.*/
 SELECT film.film_id, title
 FROM film
-LEFT JOIN inventory ON film.film_id = inventory.film_id
-WHERE inventory_id IS NULL
+WHERE NOT EXISTS (
+    SELECT 1 FROM inventory 
+    WHERE film.film_id = inventory.film_id
+);
 
 /*Display the top 3 actors who appeared the most in films within the "Children" category. If multiple actors have the same count, include all.*/
 WITH RankedActors AS(
