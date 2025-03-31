@@ -62,19 +62,38 @@ GROUP BY city
 ORDER BY num_inactive_customers DESC 
 
 /*Display the film category with the highest total rental hours in cities where customer.address_id belongs to that city and starts with the letter "a". Do the same for cities containing the symbol "-". Write this in a single query.*/
-SELECT category.name, SUM(EXTRACT(EPOCH FROM rental.return_date - rental.rental_date) / 3600) AS rental_hours
-FROM film 
-INNER JOIN film_category ON film.film_id = film_category.film_id
-INNER JOIN category ON film_category.category_id = category.category_id
-INNER JOIN inventory ON film.film_id = inventory.film_id
-INNER JOIN rental ON inventory.inventory_id = rental.inventory_id
-INNER JOIN customer ON rental.customer_id = customer.customer_id
-INNER JOIN address ON customer.address_id = address.address_id
-INNER JOIN city ON address.city_id = city.city_id
-WHERE  (city.city LIKE 'A%') OR (city.city LIKE '%-%')
-GROUP BY category.name
-ORDER BY rental_hours DESC
-LIMIT 1
+WITH RentalHours AS (
+	SELECT category.name AS category_name, SUM(EXTRACT(EPOCH FROM rental.return_date - rental.rental_date) / 3600) AS rental_hours,
+	city.city AS city
+	FROM film 
+	INNER JOIN film_category ON film.film_id = film_category.film_id
+	INNER JOIN category ON film_category.category_id = category.category_id
+	INNER JOIN inventory ON film.film_id = inventory.film_id
+	INNER JOIN rental ON inventory.inventory_id = rental.inventory_id
+	INNER JOIN customer ON rental.customer_id = customer.customer_id
+	INNER JOIN address ON customer.address_id = address.address_id
+	INNER JOIN city ON address.city_id = city.city_id
+	GROUP BY category.name, city.city
+),
+FirstCondition AS (
+	SELECT category_name, SUM(rental_hours) AS total_rental_hours
+	FROM RentalHours
+	WHERE city LIKE 'A%'
+	GROUP BY category_name
+	ORDER BY total_rental_hours DESC LIMIT 1
+),
+SecondCondition AS(
+	SELECT category_name, SUM(rental_hours) AS total_rental_hours
+	FROM RentalHours
+	WHERE city LIKE '%-%'
+	GROUP BY category_name
+	ORDER BY total_rental_hours DESC LIMIT 1
+)
+SELECT 'A% condition' AS condition, category_name, total_rental_hours
+FROM FirstCondition
+UNION ALL
+SELECT '%-% condition' AS condition, category_name, total_rental_hours
+FROM SecondCondition
 
 
 
