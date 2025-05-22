@@ -8,7 +8,7 @@ CREATE OR REPLACE PROCEDURE load_stage()
 LANGUAGE plpgsql
 AS $$
 BEGIN
-  	DROP IF EXISTS TABLE stage.sales;
+  	DROP TABLE IF EXISTS stage.sales;
 
 	CREATE TABLE stage.sales (
 		row_id INTEGER,
@@ -43,7 +43,8 @@ BEGIN
 	ALTER TABLE stage.sales
 	ALTER COLUMN ship_date TYPE DATE
 	USING TO_DATE(ship_date, 'MM/DD/YYYY');
-	
+
+	CALL drop_all_views();
 	CALL drop_all_tables();
 	CALL create_all_tables();
 
@@ -283,6 +284,7 @@ BEGIN
 	CALL load_customers();
 	CALL load_products();
 	CALL load_orders();
+	CALL create_all_views();
 END;
 $$;
 
@@ -320,9 +322,6 @@ END;
 $$;
 
 --checking
-
-
-
 SELECT *
 FROM core.orders o
 JOIN core.customers c ON o.active_customer_id = c.id
@@ -335,20 +334,39 @@ WHERE customer_id = 'CG-12520'
 ORDER BY order_date
 
 --Mart Layer
-CREATE OR REPLACE VIEW mart.dim_customers AS
-SELECT * 
-FROM core.customers;
+CREATE OR REPLACE PROCEDURE drop_all_views()
+LANGUAGE plpgsql
+AS $$
+BEGIN
+	DROP VIEW IF EXISTS mart.fact_orders;
+	DROP VIEW IF EXISTS mart.dim_products;
+	DROP VIEW IF EXISTS mart.dim_shipments;
+  	DROP VIEW IF EXISTS mart.dim_customers;
+	 
+END;
+$$;
 
-CREATE OR REPLACE VIEW mart.dim_shipments AS
-SELECT ship_id, ship_date, ship_mode, country, region, state, city, postal_code
-FROM core.shipments sh
-JOIN core.locations l ON l.location_id = sh.location_id;
-
-CREATE OR REPLACE VIEW mart.dim_products AS
-SELECT product_hash, product_id, product_name, p.sub_category, category
-FROM core.products p
-JOIN core.sub_categories sb ON sb.sub_category = p.sub_category;
-
-CREATE OR REPLACE VIEW mart.fact_orders AS
-SELECT *
-FROM core.orders;
+CREATE OR REPLACE PROCEDURE create_all_views()
+LANGUAGE plpgsql
+AS $$
+BEGIN
+	CREATE OR REPLACE VIEW mart.dim_customers AS
+	SELECT * 
+	FROM core.customers;
+	
+	CREATE OR REPLACE VIEW mart.dim_shipments AS
+	SELECT ship_id, ship_date, ship_mode, country, region, state, city, postal_code
+	FROM core.shipments sh
+	JOIN core.locations l ON l.location_id = sh.location_id;
+	
+	CREATE OR REPLACE VIEW mart.dim_products AS
+	SELECT product_hash, product_id, product_name, p.sub_category, category
+	FROM core.products p
+	JOIN core.sub_categories sb ON sb.sub_category = p.sub_category;
+	
+	CREATE OR REPLACE VIEW mart.fact_orders AS
+	SELECT *
+	FROM core.orders;
+	 
+END;
+$$;
